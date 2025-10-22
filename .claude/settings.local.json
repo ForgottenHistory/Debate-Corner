@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//workspaces/codespaces-blank/ChatterBox/src/lib/components/**)",
+      "Read(//workspaces/codespaces-blank/ChatterBox/src/lib/server/**)",
+      "Bash(test:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
