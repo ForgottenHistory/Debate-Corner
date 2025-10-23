@@ -64,15 +64,15 @@
 		return personalityKeys[Math.floor(Math.random() * personalityKeys.length)];
 	}
 
-	function startDebate(newTopic: string) {
+	function startDebate(newTopic: string, debater1Choice: string, debater2Choice: string) {
 		topic = newTopic;
 		currentTurns = [];
 		turnIndex = 0;
 		currentStage = 'opening';
 
-		// Randomly assign personalities
-		debater1Personality = getRandomPersonality();
-		debater2Personality = getRandomPersonality();
+		// Assign personalities based on selection or random
+		debater1Personality = (debater1Choice === 'random' ? getRandomPersonality() : debater1Choice) as Personality;
+		debater2Personality = (debater2Choice === 'random' ? getRandomPersonality() : debater2Choice) as Personality;
 
 		console.log(`Debate started! FOR: ${debater1Personality}, AGAINST: ${debater2Personality}`);
 	}
