@@ -15,6 +15,7 @@
 	let isGenerating = $state(false);
 	let debater1Personality = $state<Personality>('honest');
 	let debater2Personality = $state<Personality>('honest');
+	let currentJudgeNumber = $state(0); // Track which judge is currently evaluating
 
 	// Define the debate sequence
 	const debateSequence: Array<{ position: Position; type: 'opening' | 'rebuttal'; round?: number }> =
@@ -33,13 +34,28 @@
 			return JSON.parse(stored);
 		}
 		// Default settings
+		const defaultLLMParams = {
+			temperature: 0.8,
+			topP: 1.0,
+			topK: -1,
+			frequencyPenalty: 0.0,
+			presencePenalty: 0.0,
+			repetitionPenalty: 1.0,
+			minP: 0.0,
+			maxTokens: 800
+		};
 		return {
 			debater1Model: 'meta-llama/Meta-Llama-3.1-8B-Instruct',
 			debater2Model: 'meta-llama/Meta-Llama-3.1-8B-Instruct',
 			judge1Model: 'meta-llama/Meta-Llama-3.1-8B-Instruct',
 			judge2Model: 'meta-llama/Meta-Llama-3.1-8B-Instruct',
 			judge3Model: 'meta-llama/Meta-Llama-3.1-8B-Instruct',
-			responseLength: 'medium'
+			responseLength: 'medium',
+			debater1Params: { ...defaultLLMParams },
+			debater2Params: { ...defaultLLMParams },
+			judge1Params: { ...defaultLLMParams, maxTokens: 400 },
+			judge2Params: { ...defaultLLMParams, maxTokens: 400 },
+			judge3Params: { ...defaultLLMParams, maxTokens: 400 }
 		};
 	}
 
@@ -72,6 +88,8 @@
 			currentTurnDef.position === 'FOR' ? settings.debater1Model : settings.debater2Model;
 		const personality =
 			currentTurnDef.position === 'FOR' ? debater1Personality : debater2Personality;
+		const params =
+			currentTurnDef.position === 'FOR' ? settings.debater1Params : settings.debater2Params;
 
 		// Create a placeholder turn that we'll update as content streams in
 		const newTurn: DebateTurn = {
@@ -97,7 +115,16 @@
 					turnType: currentTurnDef.type,
 					round: currentTurnDef.round,
 					responseLength: settings.responseLength,
-					personality
+					personality,
+					// Agent-specific LLM parameters
+					temperature: params.temperature,
+					maxTokens: params.maxTokens,
+					topP: params.topP,
+					topK: params.topK,
+					frequencyPenalty: params.frequencyPenalty,
+					presencePenalty: params.presencePenalty,
+					repetitionPenalty: params.repetitionPenalty,
+					minP: params.minP
 				})
 			});
 
@@ -147,6 +174,7 @@
 	async function showResults() {
 		isGenerating = true;
 		currentStage = 'judging';
+		currentJudgeNumber = 0;
 
 		const settings = getSettings();
 		const judgeModels = [settings.judge1Model, settings.judge2Model, settings.judge3Model];
@@ -157,7 +185,9 @@
 			const usedJudgePersonalities: string[] = [];
 
 			for (let i = 0; i < judgeModels.length; i++) {
+				currentJudgeNumber = i + 1; // Update current judge number
 				const model = judgeModels[i];
+				const judgeParams = i === 0 ? settings.judge1Params : i === 1 ? settings.judge2Params : settings.judge3Params;
 
 				const response = await fetch('/api/judge', {
 					method: 'POST',
@@ -166,7 +196,16 @@
 						model,
 						topic,
 						debateHistory: currentTurns,
-						usedPersonalities: usedJudgePersonalities
+						usedPersonalities: usedJudgePersonalities,
+						// Judge-specific LLM parameters
+						temperature: judgeParams.temperature,
+						maxTokens: judgeParams.maxTokens,
+						topP: judgeParams.topP,
+						topK: judgeParams.topK,
+						frequencyPenalty: judgeParams.frequencyPenalty,
+						presencePenalty: judgeParams.presencePenalty,
+						repetitionPenalty: judgeParams.repetitionPenalty,
+						minP: judgeParams.minP
 					})
 				});
 
@@ -188,9 +227,9 @@
 					}
 				];
 
-				// Track which personalities we've used
-				if (data.personality) {
-					usedJudgePersonalities.push(data.personality);
+				// Track which personality keys we've used (not the display name)
+				if (data.personalityKey) {
+					usedJudgePersonalities.push(data.personalityKey);
 				}
 			}
 
@@ -249,7 +288,45 @@
 					class="animate-spin h-12 w-12 border-4 border-purple-600 border-t-transparent rounded-full mb-4"
 				></div>
 				<h2 class="text-2xl font-bold text-gray-900 mb-2">Judges are deliberating...</h2>
-				<p class="text-gray-600">Evaluating the debate and determining the winner</p>
+				<p class="text-gray-600 mb-4">Evaluating the debate and determining the winner</p>
+
+				<!-- Progress indicator -->
+				<div class="mt-4 text-center">
+					<div class="flex items-center gap-2 justify-center mb-3">
+						{#each [1, 2, 3] as judgeNum}
+							<div class="flex items-center gap-2">
+								{#if judgeNum < currentJudgeNumber}
+									<!-- Completed -->
+									<div class="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-semibold">
+										✓
+									</div>
+								{:else if judgeNum === currentJudgeNumber}
+									<!-- Currently evaluating -->
+									<div class="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold animate-pulse">
+										{judgeNum}
+									</div>
+								{:else}
+									<!-- Pending -->
+									<div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-semibold">
+										{judgeNum}
+									</div>
+								{/if}
+								{#if judgeNum < 3}
+									<div class="w-8 h-0.5 bg-gray-300"></div>
+								{/if}
+							</div>
+						{/each}
+					</div>
+					<p class="text-sm text-gray-600">
+						{#if currentJudgeNumber === 0}
+							Preparing judges...
+						{:else if currentJudgeNumber <= 3}
+							Judge {currentJudgeNumber} of 3 is evaluating
+						{:else}
+							Finalizing results...
+						{/if}
+					</p>
+				</div>
 			</div>
 		{:else if currentStage === 'results'}
 			<JudgeResults

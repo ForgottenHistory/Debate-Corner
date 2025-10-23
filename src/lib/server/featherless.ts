@@ -19,6 +19,12 @@ export interface GenerateOptions {
 	messages: ChatMessage[];
 	temperature?: number;
 	max_tokens?: number;
+	top_p?: number;
+	top_k?: number;
+	frequency_penalty?: number;
+	presence_penalty?: number;
+	repetition_penalty?: number;
+	min_p?: number;
 }
 
 /**
@@ -60,7 +66,13 @@ export async function generateChatCompletion(options: GenerateOptions): Promise<
 				model: options.model,
 				messages: options.messages,
 				temperature: options.temperature ?? 0.8,
-				max_tokens: options.max_tokens ?? 800
+				max_tokens: options.max_tokens ?? 800,
+				...(options.top_p !== undefined && { top_p: options.top_p }),
+				...(options.top_k !== undefined && { top_k: options.top_k }),
+				...(options.frequency_penalty !== undefined && { frequency_penalty: options.frequency_penalty }),
+				...(options.presence_penalty !== undefined && { presence_penalty: options.presence_penalty }),
+				...(options.repetition_penalty !== undefined && { repetition_penalty: options.repetition_penalty }),
+				...(options.min_p !== undefined && { min_p: options.min_p })
 			})
 		});
 
@@ -95,7 +107,13 @@ export async function streamChatCompletion(
 			messages: options.messages,
 			temperature: options.temperature ?? 0.8,
 			max_tokens: options.max_tokens ?? 800,
-			stream: true
+			stream: true,
+			...(options.top_p !== undefined && { top_p: options.top_p }),
+			...(options.top_k !== undefined && { top_k: options.top_k }),
+			...(options.frequency_penalty !== undefined && { frequency_penalty: options.frequency_penalty }),
+			...(options.presence_penalty !== undefined && { presence_penalty: options.presence_penalty }),
+			...(options.repetition_penalty !== undefined && { repetition_penalty: options.repetition_penalty }),
+			...(options.min_p !== undefined && { min_p: options.min_p })
 		})
 	});
 

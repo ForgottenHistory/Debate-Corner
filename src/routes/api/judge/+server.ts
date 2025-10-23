@@ -15,7 +15,21 @@ function getRandomJudgePersonality(usedPersonalities: string[]): JudgePersonalit
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
-		const { model, topic, debateHistory, usedPersonalities = [] } = await request.json();
+		const {
+			model,
+			topic,
+			debateHistory,
+			usedPersonalities = [],
+			// LLM parameters with defaults
+			temperature = 0.7,
+			maxTokens = 400,
+			topP,
+			topK,
+			frequencyPenalty,
+			presencePenalty,
+			repetitionPenalty,
+			minP
+		} = await request.json();
 
 		// Randomly assign a judge personality, avoiding duplicates if possible
 		const judgePersonality = getRandomJudgePersonality(usedPersonalities);
@@ -34,6 +48,7 @@ You will review the complete debate transcript and determine:
 2. Your reasoning for this decision
 
 Your evaluation should be 100-150 words.
+NEVER use emojis - keep all text clean and professional.
 
 Format your response as:
 Winner: [FOR/AGAINST/TIE]
@@ -57,8 +72,14 @@ Reasoning: [Your detailed reasoning]`;
 		const content = await generateChatCompletion({
 			model,
 			messages,
-			temperature: 0.7,
-			max_tokens: 400
+			temperature,
+			max_tokens: maxTokens,
+			...(topP !== undefined && { top_p: topP }),
+			...(topK !== undefined && { top_k: topK }),
+			...(frequencyPenalty !== undefined && { frequency_penalty: frequencyPenalty }),
+			...(presencePenalty !== undefined && { presence_penalty: presencePenalty }),
+			...(repetitionPenalty !== undefined && { repetition_penalty: repetitionPenalty }),
+			...(minP !== undefined && { min_p: minP })
 		});
 
 		// Parse the response to extract winner and reasoning
@@ -70,7 +91,7 @@ Reasoning: [Your detailed reasoning]`;
 			? reasoningMatch[1].trim()
 			: content.replace(/Winner:\s*(FOR|AGAINST|TIE)/i, '').trim();
 
-		return json({ winner, reasoning, personality: personalityConfig.name });
+		return json({ winner, reasoning, personality: personalityConfig.name, personalityKey: judgePersonality });
 	} catch (error) {
 		console.error('Error generating judge evaluation:', error);
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';

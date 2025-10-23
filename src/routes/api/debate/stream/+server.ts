@@ -4,8 +4,25 @@ import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
-		const { model, position, topic, debateHistory, turnType, round, responseLength, personality } =
-			await request.json();
+		const {
+			model,
+			position,
+			topic,
+			debateHistory,
+			turnType,
+			round,
+			responseLength,
+			personality,
+			// LLM parameters with defaults
+			temperature = 0.8,
+			maxTokens = 800,
+			topP,
+			topK,
+			frequencyPenalty,
+			presencePenalty,
+			repetitionPenalty,
+			minP
+		} = await request.json();
 
 		// Map response length to strict guidelines
 		const lengthConfigs: Record<string, { words: string; instruction: string }> = {
@@ -48,6 +65,7 @@ Guidelines:
 - Address counterarguments effectively
 - Keep your response focused and well-structured
 - Be respectful but assertive
+- NEVER use emojis - keep all text clean and professional
 - STRICTLY adhere to the ${lengthConfig.words} word limit above
 
 ${turnType === 'opening' ? 'This is your OPENING STATEMENT. Your opponent has NOT spoken yet. Present YOUR OWN arguments and reasoning. DO NOT reference or predict what your opponent will say - they haven\'t spoken yet!' : `This is Round ${round}. NOW you can respond to your opponent's actual arguments from their previous statement. Reference what they actually said and counter their specific points.`}`;
@@ -76,8 +94,14 @@ ${turnType === 'opening' ? 'This is your OPENING STATEMENT. Your opponent has NO
 		const stream = await streamChatCompletion({
 			model,
 			messages,
-			temperature: 0.8,
-			max_tokens: 800
+			temperature,
+			max_tokens: maxTokens,
+			...(topP !== undefined && { top_p: topP }),
+			...(topK !== undefined && { top_k: topK }),
+			...(frequencyPenalty !== undefined && { frequency_penalty: frequencyPenalty }),
+			...(presencePenalty !== undefined && { presence_penalty: presencePenalty }),
+			...(repetitionPenalty !== undefined && { repetition_penalty: repetitionPenalty }),
+			...(minP !== undefined && { min_p: minP })
 		});
 
 		// Create a ReadableStream that parses SSE and extracts content
