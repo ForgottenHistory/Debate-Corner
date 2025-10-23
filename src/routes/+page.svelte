@@ -91,84 +91,110 @@
 		const params =
 			currentTurnDef.position === 'FOR' ? settings.debater1Params : settings.debater2Params;
 
-		// Create a placeholder turn that we'll update as content streams in
-		const newTurn: DebateTurn = {
-			position: currentTurnDef.position,
-			type: currentTurnDef.type,
-			round: currentTurnDef.round,
-			content: '',
-			timestamp: new Date()
-		};
+		const maxRetries = 3;
+		let attempt = 0;
+		let success = false;
 
-		currentTurns = [...currentTurns, newTurn];
-		const currentTurnIndex = currentTurns.length - 1;
+		while (attempt < maxRetries && !success) {
+			attempt++;
 
-		try {
-			const response = await fetch('/api/debate/stream', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					model,
-					position: currentTurnDef.position,
-					topic,
-					debateHistory: currentTurns.slice(0, -1), // Exclude the placeholder
-					turnType: currentTurnDef.type,
-					round: currentTurnDef.round,
-					responseLength: settings.responseLength,
-					personality,
-					// Agent-specific LLM parameters
-					temperature: params.temperature,
-					maxTokens: params.maxTokens,
-					topP: params.topP,
-					topK: params.topK,
-					frequencyPenalty: params.frequencyPenalty,
-					presencePenalty: params.presencePenalty,
-					repetitionPenalty: params.repetitionPenalty,
-					minP: params.minP
-				})
-			});
+			// Create a placeholder turn that we'll update as content streams in
+			const newTurn: DebateTurn = {
+				position: currentTurnDef.position,
+				type: currentTurnDef.type,
+				round: currentTurnDef.round,
+				content: '',
+				timestamp: new Date()
+			};
 
-			if (!response.ok) {
-				throw new Error('Failed to generate response');
-			}
+			currentTurns = [...currentTurns, newTurn];
+			const currentTurnIndex = currentTurns.length - 1;
 
-			const reader = response.body?.getReader();
-			const decoder = new TextDecoder();
+			try {
+				const response = await fetch('/api/debate/stream', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						model,
+						position: currentTurnDef.position,
+						topic,
+						debateHistory: currentTurns.slice(0, -1), // Exclude the placeholder
+						turnType: currentTurnDef.type,
+						round: currentTurnDef.round,
+						responseLength: settings.responseLength,
+						personality,
+						// Agent-specific LLM parameters
+						temperature: params.temperature,
+						maxTokens: params.maxTokens,
+						topP: params.topP,
+						topK: params.topK,
+						frequencyPenalty: params.frequencyPenalty,
+						presencePenalty: params.presencePenalty,
+						repetitionPenalty: params.repetitionPenalty,
+						minP: params.minP
+					})
+				});
 
-			if (!reader) throw new Error('No response body');
+				if (!response.ok) {
+					throw new Error(`API returned ${response.status}: ${response.statusText}`);
+				}
 
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
+				const reader = response.body?.getReader();
+				const decoder = new TextDecoder();
 
-				const chunk = decoder.decode(value);
-				const lines = chunk.split('\n');
+				if (!reader) throw new Error('No response body');
 
-				for (const line of lines) {
-					if (line.startsWith('data: ')) {
-						const jsonString = line.slice(6);
-						try {
-							// Parse JSON to preserve newlines and special characters
-							const content = JSON.parse(jsonString);
-							// Update the turn content incrementally
-							currentTurns[currentTurnIndex].content += content;
-							currentTurns = [...currentTurns]; // Trigger reactivity
-						} catch (e) {
-							// Skip invalid JSON
+				let hasContent = false;
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) break;
+
+					const chunk = decoder.decode(value);
+					const lines = chunk.split('\n');
+
+					for (const line of lines) {
+						if (line.startsWith('data: ')) {
+							const jsonString = line.slice(6);
+							try {
+								// Parse JSON to preserve newlines and special characters
+								const content = JSON.parse(jsonString);
+								// Update the turn content incrementally
+								currentTurns[currentTurnIndex].content += content;
+								currentTurns = [...currentTurns]; // Trigger reactivity
+								hasContent = true;
+							} catch (e) {
+								// Skip invalid JSON
+							}
 						}
 					}
 				}
-			}
 
-			turnIndex++;
-		} catch (error) {
-			console.error('Error generating turn:', error);
-			alert('Failed to generate debate response. Please try again.');
-			// Remove the failed turn
-			currentTurns = currentTurns.slice(0, -1);
-		} finally {
-			isGenerating = false;
+				// Check if we actually received content
+				if (!hasContent || currentTurns[currentTurnIndex].content.trim() === '') {
+					throw new Error('No content received from API');
+				}
+
+				// Success! Increment turn index and exit loop
+				turnIndex++;
+				success = true;
+			} catch (error) {
+				console.error(`Error generating turn (attempt ${attempt}/${maxRetries}):`, error);
+				// Remove the failed turn
+				currentTurns = currentTurns.slice(0, -1);
+
+				// If this was the last attempt, show error to user
+				if (attempt >= maxRetries) {
+					alert(
+						`Failed to generate debate response after ${maxRetries} attempts. Please check your connection and try again.`
+					);
+				} else {
+					// Wait a bit before retrying
+					await new Promise(resolve => setTimeout(resolve, 1000));
+				}
+			}
 		}
+
+		isGenerating = false;
 	}
 
 	async function showResults() {
@@ -183,53 +209,84 @@
 			// Generate evaluations from all 3 judges SEQUENTIALLY (Featherless has concurrency limit)
 			judges = [];
 			const usedJudgePersonalities: string[] = [];
+			const maxRetries = 3;
 
 			for (let i = 0; i < judgeModels.length; i++) {
 				currentJudgeNumber = i + 1; // Update current judge number
 				const model = judgeModels[i];
 				const judgeParams = i === 0 ? settings.judge1Params : i === 1 ? settings.judge2Params : settings.judge3Params;
 
-				const response = await fetch('/api/judge', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						model,
-						topic,
-						debateHistory: currentTurns,
-						usedPersonalities: usedJudgePersonalities,
-						// Judge-specific LLM parameters
-						temperature: judgeParams.temperature,
-						maxTokens: judgeParams.maxTokens,
-						topP: judgeParams.topP,
-						topK: judgeParams.topK,
-						frequencyPenalty: judgeParams.frequencyPenalty,
-						presencePenalty: judgeParams.presencePenalty,
-						repetitionPenalty: judgeParams.repetitionPenalty,
-						minP: judgeParams.minP
-					})
-				});
+				let attempt = 0;
+				let success = false;
+				let judgeData = null;
 
-				if (!response.ok) {
-					const errorData = await response.json();
-					console.error(`Judge ${i + 1} error:`, errorData);
-					throw new Error(`Judge ${i + 1} failed to evaluate`);
+				while (attempt < maxRetries && !success) {
+					attempt++;
+
+					try {
+						const response = await fetch('/api/judge', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								model,
+								topic,
+								debateHistory: currentTurns,
+								usedPersonalities: usedJudgePersonalities,
+								// Judge-specific LLM parameters
+								temperature: judgeParams.temperature,
+								maxTokens: judgeParams.maxTokens,
+								topP: judgeParams.topP,
+								topK: judgeParams.topK,
+								frequencyPenalty: judgeParams.frequencyPenalty,
+								presencePenalty: judgeParams.presencePenalty,
+								repetitionPenalty: judgeParams.repetitionPenalty,
+								minP: judgeParams.minP
+							})
+						});
+
+						if (!response.ok) {
+							const errorData = await response.json().catch(() => ({}));
+							console.error(`Judge ${i + 1} error (attempt ${attempt}/${maxRetries}):`, errorData);
+							throw new Error(`API returned ${response.status}: ${response.statusText}`);
+						}
+
+						const data = await response.json();
+
+						// Validate we got necessary data
+						if (!data.winner || !data.reasoning) {
+							throw new Error('Incomplete judge response');
+						}
+
+						judgeData = data;
+						success = true;
+					} catch (error) {
+						console.error(`Judge ${i + 1} error (attempt ${attempt}/${maxRetries}):`, error);
+
+						if (attempt >= maxRetries) {
+							throw new Error(`Judge ${i + 1} failed after ${maxRetries} attempts`);
+						}
+
+						// Wait before retrying
+						await new Promise(resolve => setTimeout(resolve, 1000));
+					}
 				}
 
-				const data = await response.json();
+				// Add successful judge evaluation
+				if (judgeData) {
+					judges = [
+						...judges,
+						{
+							judgeNumber: i + 1,
+							winner: judgeData.winner as Winner,
+							reasoning: judgeData.reasoning,
+							personality: judgeData.personality
+						}
+					];
 
-				judges = [
-					...judges,
-					{
-						judgeNumber: i + 1,
-						winner: data.winner as Winner,
-						reasoning: data.reasoning,
-						personality: data.personality
+					// Track which personality keys we've used (not the display name)
+					if (judgeData.personalityKey) {
+						usedJudgePersonalities.push(judgeData.personalityKey);
 					}
-				];
-
-				// Track which personality keys we've used (not the display name)
-				if (data.personalityKey) {
-					usedJudgePersonalities.push(data.personalityKey);
 				}
 			}
 
@@ -237,7 +294,8 @@
 			currentStage = 'results';
 		} catch (error) {
 			console.error('Error generating judge evaluations:', error);
-			alert('Failed to generate judge evaluations. Please try again.');
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			alert(`Failed to generate judge evaluations: ${errorMessage}\n\nPlease check your connection and try again.`);
 			currentStage = 'opening';
 		} finally {
 			isGenerating = false;
