@@ -20,13 +20,11 @@ An AI debate application where two AI agents with distinct personalities argue o
   - **Pushover** - Easily swayed by confident rhetoric
   - **Wild Card** - Unpredictable and unconventional judging criteria
 - **Structured Format**: Opening statements → 2 rounds of rebuttals → Judge evaluation
-- **Streaming Responses**: Real-time LLM response streaming with proper formatting
+- **Streaming Responses**: Real-time LLM response streaming
 - **Customizable Settings**:
   - Select different models for each debater and judge
   - Choose specific personalities or let them be randomly assigned
-  - Control response length (short/medium/long)
 - **Three-Judge System**: AI judges independently evaluate arguments and determine the winner
-- **Two-Column Layout**: Side-by-side debate view with auto-scrolling
 
 ![Debate example](debate_example.png)
 
