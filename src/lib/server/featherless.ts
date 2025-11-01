@@ -1,6 +1,30 @@
-import { FEATHERLESS_API_KEY } from '$env/static/private';
+import { FEATHERLESS_API_KEY, OPENROUTER_API_KEY } from '$env/static/private';
 
 const FEATHERLESS_BASE_URL = 'https://api.featherless.ai/v1';
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+
+export type Provider = 'featherless' | 'openrouter';
+
+function getProviderConfig(provider: Provider) {
+	if (provider === 'openrouter') {
+		return {
+			baseUrl: OPENROUTER_BASE_URL,
+			apiKey: OPENROUTER_API_KEY,
+			headers: {
+				'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+				'HTTP-Referer': 'https://debate-corner.app',
+				'X-Title': 'Debate Corner'
+			}
+		};
+	}
+	return {
+		baseUrl: FEATHERLESS_BASE_URL,
+		apiKey: FEATHERLESS_API_KEY,
+		headers: {
+			'Authorization': `Bearer ${FEATHERLESS_API_KEY}`
+		}
+	};
+}
 
 export interface FeatherlessModel {
 	id: string;
@@ -25,41 +49,44 @@ export interface GenerateOptions {
 	presence_penalty?: number;
 	repetition_penalty?: number;
 	min_p?: number;
+	provider?: Provider;
 }
 
 /**
- * Fetch available models from Featherless API
+ * Fetch available models from the specified provider
  */
-export async function fetchModels(): Promise<FeatherlessModel[]> {
+export async function fetchModels(provider: Provider = 'featherless'): Promise<FeatherlessModel[]> {
 	try {
-		const response = await fetch(`${FEATHERLESS_BASE_URL}/models`, {
-			headers: {
-				Authorization: `Bearer ${FEATHERLESS_API_KEY}`
-			}
+		const config = getProviderConfig(provider);
+		const response = await fetch(`${config.baseUrl}/models`, {
+			headers: config.headers
 		});
 
 		if (!response.ok) {
-			console.error('Failed to fetch models:', response.status);
+			console.error(`Failed to fetch models from ${provider}:`, response.status);
 			return [];
 		}
 
 		const data = await response.json();
 		return data.data || [];
 	} catch (error) {
-		console.error('Error fetching models:', error);
+		console.error(`Error fetching models from ${provider}:`, error);
 		return [];
 	}
 }
 
 /**
- * Generate a chat completion using Featherless API (non-streaming)
+ * Generate a chat completion (non-streaming)
  */
 export async function generateChatCompletion(options: GenerateOptions): Promise<string> {
+	const provider = options.provider ?? 'featherless';
+	const config = getProviderConfig(provider);
+
 	try {
-		const response = await fetch(`${FEATHERLESS_BASE_URL}/chat/completions`, {
+		const response = await fetch(`${config.baseUrl}/chat/completions`, {
 			method: 'POST',
 			headers: {
-				Authorization: `Bearer ${FEATHERLESS_API_KEY}`,
+				...config.headers,
 				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify({
@@ -78,28 +105,31 @@ export async function generateChatCompletion(options: GenerateOptions): Promise<
 
 		if (!response.ok) {
 			const error = await response.text();
-			console.error('Failed to generate completion:', response.status, error);
+			console.error(`Failed to generate completion on ${provider}:`, response.status, error);
 			throw new Error(`API request failed: ${response.status}`);
 		}
 
 		const data = await response.json();
 		return data.choices?.[0]?.message?.content || '';
 	} catch (error) {
-		console.error('Error generating completion:', error);
+		console.error(`Error generating completion on ${provider}:`, error);
 		throw error;
 	}
 }
 
 /**
- * Stream a chat completion using Featherless API
+ * Stream a chat completion
  */
 export async function streamChatCompletion(
 	options: GenerateOptions
 ): Promise<ReadableStream<Uint8Array>> {
-	const response = await fetch(`${FEATHERLESS_BASE_URL}/chat/completions`, {
+	const provider = options.provider ?? 'featherless';
+	const config = getProviderConfig(provider);
+
+	const response = await fetch(`${config.baseUrl}/chat/completions`, {
 		method: 'POST',
 		headers: {
-			Authorization: `Bearer ${FEATHERLESS_API_KEY}`,
+			...config.headers,
 			'Content-Type': 'application/json'
 		},
 		body: JSON.stringify({
@@ -119,7 +149,7 @@ export async function streamChatCompletion(
 
 	if (!response.ok) {
 		const error = await response.text();
-		console.error('Failed to stream completion:', response.status, error);
+		console.error(`Failed to stream completion on ${provider}:`, response.status, error);
 		throw new Error(`API request failed: ${response.status}`);
 	}
 

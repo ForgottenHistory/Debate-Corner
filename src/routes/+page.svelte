@@ -123,6 +123,7 @@
 						round: currentTurnDef.round,
 						responseLength: settings.responseLength,
 						personality,
+						provider: settings.provider,
 						// Agent-specific LLM parameters
 						temperature: params.temperature,
 						maxTokens: params.maxTokens,
@@ -232,6 +233,7 @@
 								topic,
 								debateHistory: currentTurns,
 								usedPersonalities: usedJudgePersonalities,
+								provider: settings.provider,
 								// Judge-specific LLM parameters
 								temperature: judgeParams.temperature,
 								maxTokens: judgeParams.maxTokens,

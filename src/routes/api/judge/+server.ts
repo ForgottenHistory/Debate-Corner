@@ -20,6 +20,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			topic,
 			debateHistory,
 			usedPersonalities = [],
+			provider = 'featherless',
 			// LLM parameters with defaults
 			temperature = 0.7,
 			maxTokens = 400,
@@ -74,6 +75,7 @@ Reasoning: [Your detailed reasoning]`;
 			messages,
 			temperature,
 			max_tokens: maxTokens,
+			provider,
 			...(topP !== undefined && { top_p: topP }),
 			...(topK !== undefined && { top_k: topK }),
 			...(frequencyPenalty !== undefined && { frequency_penalty: frequencyPenalty }),

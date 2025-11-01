@@ -27,7 +27,10 @@ export interface LLMParameters {
 	maxTokens: number; // Maximum tokens to generate
 }
 
+export type Provider = 'featherless' | 'openrouter';
+
 export interface Settings {
+	provider: Provider;
 	debater1Model: string;
 	debater2Model: string;
 	judge1Model: string;

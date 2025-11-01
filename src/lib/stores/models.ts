@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import type { Provider } from '$lib/types';
 
 interface FeatherlessModel {
 	id: string;
@@ -8,21 +9,22 @@ interface FeatherlessModel {
 function createModelsStore() {
 	const { subscribe, set } = writable<FeatherlessModel[]>([]);
 	let loading = writable(false);
-	let loaded = false;
+	let currentProvider: Provider | null = null;
 
 	return {
 		subscribe,
 		loading: { subscribe: loading.subscribe },
-		async fetch() {
-			if (loaded) return; // Don't fetch again if already loaded
+		async fetch(provider: Provider = 'featherless') {
+			// Re-fetch if provider changed
+			if (currentProvider === provider) return;
 
+			currentProvider = provider;
 			loading.set(true);
 			try {
-				const response = await fetch('/api/models');
+				const response = await fetch(`/api/models?provider=${provider}`);
 				if (response.ok) {
 					const models = await response.json();
 					set(models);
-					loaded = true;
 				}
 			} catch (error) {
 				console.error('Failed to fetch models:', error);

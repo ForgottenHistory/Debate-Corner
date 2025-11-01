@@ -13,6 +13,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			round,
 			responseLength,
 			personality,
+			provider = 'featherless',
 			// LLM parameters with defaults
 			temperature = 0.8,
 			maxTokens = 800,
@@ -96,6 +97,7 @@ ${turnType === 'opening' ? 'This is your OPENING STATEMENT. Your opponent has NO
 			messages,
 			temperature,
 			max_tokens: maxTokens,
+			provider,
 			...(topP !== undefined && { top_p: topP }),
 			...(topK !== undefined && { top_k: topK }),
 			...(frequencyPenalty !== undefined && { frequency_penalty: frequencyPenalty }),

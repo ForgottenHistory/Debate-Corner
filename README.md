@@ -1,23 +1,29 @@
 # Debate Corner
 
+![AI Debate Arena](hero.png)
+
 An AI debate application where two AI agents with distinct personalities argue opposing sides of user-provided topics, evaluated by three AI judges.
 
 ## Features
 
 - **AI vs AI Debates**: Watch two language models debate each other on any topic
-- **Dynamic Personalities**: 8 distinct debate personalities randomly assigned to debaters:
-  - **Honest** - Intellectually honest, good faith arguments with steelmanning
-  - **Academic** - Dense scholarly discourse with citations and theoretical frameworks
-  - **Manipulative** - Uses rhetorical tricks, fallacies, and persuasion tactics
-  - **Strawman Artist** - Misrepresents and distorts opponent's arguments
-  - **Emotional** - Appeals to emotions with vivid storytelling and moral framing
-  - **Pedantic** - Obsessively nitpicks definitions and semantics
-  - **Zealot** - Fanatical conviction, refuses to concede any point
-  - **Ignorant** - Confidently wrong with fundamental misunderstandings
+- **Dynamic Personalities**: 33 distinct debate personalities randomly assigned to debaters, including:
+  - **Classic Styles**: Honest, Academic, Manipulative, Strawman Artist, Emotional, Pedantic, Zealot, Ignorant
+  - **Internet Archetypes**: Debatebro, Twitter Reply Guy, Reddit Scholar, TikTok Activist, YouTube Essayist, Pol User, Tumblr Activist
+  - **Argument Styles**: Gish Galloper, Sophist, Whataboutist, Concern Troll, Bad Faith Actor, Contrarian, Anecdotalist
+  - **Ideological Approaches**: Ideologue, Centrist Smuggler, Radical Feminist, Pragmatist, Folksy Populist
+  - **Unique Perspectives**: Data Fetishist, Doomer, Optimist Dismisser, Nothing Ever Happens, Conspiracy Analyst, Regular Guy
+- **Judge Personalities**: 5 unique judge personalities that evaluate debates differently:
+  - **Logic Purist** - Values logical consistency and formal reasoning
+  - **Harsh Critic** - Unforgiving evaluator with high standards
+  - **Bleeding Heart** - Empathetic and values emotional resonance
+  - **Pushover** - Easily swayed by confident rhetoric
+  - **Wild Card** - Unpredictable and unconventional judging criteria
 - **Structured Format**: Opening statements → 2 rounds of rebuttals → Judge evaluation
 - **Streaming Responses**: Real-time LLM response streaming with proper formatting
 - **Customizable Settings**:
   - Select different models for each debater and judge
+  - Choose specific personalities or let them be randomly assigned
   - Control response length (short/medium/long)
 - **Three-Judge System**: AI judges independently evaluate arguments and determine the winner
 - **Two-Column Layout**: Side-by-side debate view with auto-scrolling
@@ -26,7 +32,7 @@ An AI debate application where two AI agents with distinct personalities argue o
 
 - **Framework**: SvelteKit 5 (using Svelte 5 runes)
 - **Styling**: Tailwind CSS 4
-- **LLM Provider**: [Featherless AI](https://featherless.ai/)
+- **LLM Providers**: [Featherless AI](https://featherless.ai/) or [OpenRouter](https://openrouter.ai/)
 - **Language**: TypeScript
 
 ## Setup
@@ -37,11 +43,21 @@ An AI debate application where two AI agents with distinct personalities argue o
 npm install
 ```
 
-2. Create a `.env` file in the root directory and add your Featherless API key:
+2. Create a `.env` file in the root directory and add your API key(s):
+
+You can use either Featherless AI or OpenRouter (or both). At least one is required.
 
 ```env
-FEATHERLESS_API_KEY=your_api_key_here
+# For Featherless AI
+FEATHERLESS_API_KEY=your_featherless_api_key_here
+
+# For OpenRouter (optional)
+OPENROUTER_API_KEY=your_openrouter_api_key_here
 ```
+
+**Getting API Keys:**
+- **Featherless AI**: Sign up at [featherless.ai](https://featherless.ai/), subscribe to a plan, and generate an API key
+- **OpenRouter**: Sign up at [openrouter.ai](https://openrouter.ai/), add credits, and generate an API key
 
 3. Start the development server:
 
@@ -55,13 +71,15 @@ npm run dev
 
 1. **Configure Settings** (optional):
    - Click "Settings" in the navigation
-   - Select models for each debater and judge from available Featherless models
+   - Choose your LLM provider (Featherless AI or OpenRouter)
+   - Select models for each debater and judge from available models
    - Choose response length (short: 75-150 words, medium: 150-250 words, long: 250-400 words)
+   - Fine-tune LLM parameters (temperature, top-p, penalties, etc.) for each agent
    - Settings persist in localStorage
 
 2. **View Personalities** (optional):
-   - Click "Personalities" to see all 8 debate personalities and their behavioral prompts
-   - Personalities are randomly assigned to debaters at the start of each debate
+   - Click "Personalities" to see all 33 debate personalities and their behavioral prompts
+   - Personalities can be manually selected or randomly assigned at the start of each debate
 
 3. **Start a Debate**:
    - Enter a debate topic on the home page
@@ -90,16 +108,20 @@ src/
 │   │   ├── DebateStage.svelte
 │   │   ├── DebateTurn.svelte
 │   │   ├── JudgeResults.svelte
-│   │   └── ModelSelector.svelte
-│   ├── personalities/       # JSON personality definitions
+│   │   ├── ModelSelector.svelte
+│   │   └── LLMParametersControl.svelte
+│   ├── personalities/       # 33 debate personality JSON definitions
 │   │   ├── honest.json
 │   │   ├── academic.json
-│   │   ├── manipulative.json
-│   │   ├── strawman.json
-│   │   ├── emotional.json
-│   │   ├── pedantic.json
-│   │   ├── zealot.json
-│   │   └── ignorant.json
+│   │   ├── debatebro.json
+│   │   ├── twitter-reply-guy.json
+│   │   └── ... (and 29 more)
+│   ├── judge-personalities/ # 5 judge personality JSON definitions
+│   │   ├── logic-purist.json
+│   │   ├── harsh-critic.json
+│   │   ├── bleeding-heart.json
+│   │   ├── pushover.json
+│   │   └── wild-card.json
 │   ├── server/
 │   │   └── featherless.ts   # Featherless API wrapper
 │   ├── stores/
@@ -109,7 +131,8 @@ src/
 ├── routes/
 │   ├── api/
 │   │   ├── debate/
-│   │   │   └── stream/      # Streaming debate endpoint
+│   │   │   ├── stream/      # Streaming debate endpoint
+│   │   │   └── +server.ts   # Non-streaming debate endpoint
 │   │   ├── judge/           # Judge evaluation endpoint
 │   │   └── models/          # Available models endpoint
 │   ├── personalities/       # Personalities view page
@@ -122,7 +145,7 @@ src/
 
 1. **Debate Flow**: The debate progresses through predefined turns (AI 1 opening → AI 2 opening → AI 1 round 1 → AI 2 round 1 → AI 1 round 2 → AI 2 round 2)
 
-2. **Personality Assignment**: Each debate randomly assigns personalities from `/src/lib/personalities/*.json` files, ensuring varied and entertaining debate styles
+2. **Personality Assignment**: Each debate can randomly assign from 33 debate personalities in `/src/lib/personalities/*.json` or let users manually select personalities. Judges are assigned from 5 judge personalities in `/src/lib/judge-personalities/*.json`
 
 3. **Streaming**: Responses use Server-Sent Events (SSE) to stream LLM output chunk-by-chunk, preserving formatting with JSON serialization
 
@@ -150,7 +173,7 @@ npm run preview
 
 ## Contributing
 
-To add new personalities:
+To add new debate personalities:
 
 1. Create a new JSON file in `/src/lib/personalities/`
 2. Follow the structure:
@@ -162,6 +185,12 @@ To add new personalities:
 }
 ```
 3. The personality will be automatically discovered and available in debates
+
+To add new judge personalities:
+
+1. Create a new JSON file in `/src/lib/judge-personalities/`
+2. Follow the same structure as debate personalities
+3. The judge personality will be automatically discovered and available for selection
 
 ## License
 

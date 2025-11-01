@@ -17,11 +17,12 @@
 	};
 
 	const defaultSettings: Settings = {
-		debater1Model: 'meta-llama/Meta-Llama-3.1-8B-Instruct',
-		debater2Model: 'meta-llama/Meta-Llama-3.1-8B-Instruct',
-		judge1Model: 'meta-llama/Meta-Llama-3.1-8B-Instruct',
-		judge2Model: 'meta-llama/Meta-Llama-3.1-8B-Instruct',
-		judge3Model: 'meta-llama/Meta-Llama-3.1-8B-Instruct',
+		provider: 'featherless',
+		debater1Model: '',
+		debater2Model: '',
+		judge1Model: '',
+		judge2Model: '',
+		judge3Model: '',
 		responseLength: 'medium',
 		debater1Params: { ...defaultLLMParams },
 		debater2Params: { ...defaultLLMParams },
@@ -41,10 +42,7 @@
 	let judge3Expanded = $state(false);
 
 	onMount(async () => {
-		// Fetch models once when page loads
-		await modelsStore.fetch();
-
-		// Load saved settings
+		// Load saved settings first
 		const stored = localStorage.getItem('debateSettings');
 		if (stored) {
 			try {
@@ -55,7 +53,42 @@
 				console.error('Failed to parse settings:', e);
 			}
 		}
+
+		// Fetch models for the selected provider
+		await modelsStore.fetch(settings.provider);
+
+		// Set default models if none selected
+		const unsubscribe = modelsStore.subscribe(models => {
+			if (models.length > 0) {
+				const firstModel = models[0].id;
+				if (!settings.debater1Model) settings.debater1Model = firstModel;
+				if (!settings.debater2Model) settings.debater2Model = firstModel;
+				if (!settings.judge1Model) settings.judge1Model = firstModel;
+				if (!settings.judge2Model) settings.judge2Model = firstModel;
+				if (!settings.judge3Model) settings.judge3Model = firstModel;
+			}
+		});
+
+		return () => unsubscribe();
 	});
+
+	// Refetch models when provider changes
+	async function handleProviderChange() {
+		await modelsStore.fetch(settings.provider);
+
+		// Reset models to first available when provider changes
+		const unsubscribe = modelsStore.subscribe(models => {
+			if (models.length > 0) {
+				const firstModel = models[0].id;
+				settings.debater1Model = firstModel;
+				settings.debater2Model = firstModel;
+				settings.judge1Model = firstModel;
+				settings.judge2Model = firstModel;
+				settings.judge3Model = firstModel;
+				unsubscribe();
+			}
+		});
+	}
 
 	function saveSettings() {
 		localStorage.setItem('debateSettings', JSON.stringify(settings));
@@ -85,6 +118,48 @@
 			</p>
 
 			<div class="space-y-6">
+				<!-- Provider Selection Section -->
+				<div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+					<h2 class="text-lg font-semibold text-gray-800 mb-3">LLM Provider</h2>
+					<p class="text-sm text-gray-600 mb-3">
+						Choose which API provider to use for accessing language models
+					</p>
+					<div class="flex gap-3">
+						<label class="flex-1">
+							<input
+								type="radio"
+								name="provider"
+								value="featherless"
+								bind:group={settings.provider}
+								onchange={handleProviderChange}
+								class="sr-only peer"
+							/>
+							<div
+								class="cursor-pointer border-2 border-gray-300 rounded-lg p-4 peer-checked:border-blue-600 peer-checked:bg-blue-50 hover:border-blue-400 transition-colors"
+							>
+								<div class="font-semibold text-gray-900">Featherless AI</div>
+								<div class="text-xs text-gray-600 mt-1">Open-source models, subscription</div>
+							</div>
+						</label>
+						<label class="flex-1">
+							<input
+								type="radio"
+								name="provider"
+								value="openrouter"
+								bind:group={settings.provider}
+								onchange={handleProviderChange}
+								class="sr-only peer"
+							/>
+							<div
+								class="cursor-pointer border-2 border-gray-300 rounded-lg p-4 peer-checked:border-blue-600 peer-checked:bg-blue-50 hover:border-blue-400 transition-colors"
+							>
+								<div class="font-semibold text-gray-900">OpenRouter</div>
+								<div class="text-xs text-gray-600 mt-1">Hundreds of models, pay-per-use</div>
+							</div>
+						</label>
+					</div>
+				</div>
+
 				<!-- Response Length Section -->
 				<div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
 					<h2 class="text-lg font-semibold text-gray-800 mb-3">Response Length</h2>
