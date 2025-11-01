@@ -28,6 +28,8 @@ An AI debate application where two AI agents with distinct personalities argue o
 - **Three-Judge System**: AI judges independently evaluate arguments and determine the winner
 - **Two-Column Layout**: Side-by-side debate view with auto-scrolling
 
+![Debate example](debate_example.png)
+
 ## Tech Stack
 
 - **Framework**: SvelteKit 5 (using Svelte 5 runes)
