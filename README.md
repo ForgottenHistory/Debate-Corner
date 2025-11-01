@@ -4,26 +4,15 @@
 
 An AI debate application where two AI agents with distinct personalities argue opposing sides of user-provided topics, evaluated by three AI judges.
 
+Could be serious or satire, sometimes both.
+
 ## Features
 
 - **AI vs AI Debates**: Watch two language models debate each other on any topic
-- **Dynamic Personalities**: 33 distinct debate personalities randomly assigned to debaters, including:
-  - **Classic Styles**: Honest, Academic, Manipulative, Strawman Artist, Emotional, Pedantic, Zealot, Ignorant
-  - **Internet Archetypes**: Debatebro, Twitter Reply Guy, Reddit Scholar, TikTok Activist, YouTube Essayist, Pol User, Tumblr Activist
-  - **Argument Styles**: Gish Galloper, Sophist, Whataboutist, Concern Troll, Bad Faith Actor, Contrarian, Anecdotalist
-  - **Ideological Approaches**: Ideologue, Centrist Smuggler, Radical Feminist, Pragmatist, Folksy Populist
-  - **Unique Perspectives**: Data Fetishist, Doomer, Optimist Dismisser, Nothing Ever Happens, Conspiracy Analyst, Regular Guy
-- **Judge Personalities**: 5 unique judge personalities that evaluate debates differently:
-  - **Logic Purist** - Values logical consistency and formal reasoning
-  - **Harsh Critic** - Unforgiving evaluator with high standards
-  - **Bleeding Heart** - Empathetic and values emotional resonance
-  - **Pushover** - Easily swayed by confident rhetoric
-  - **Wild Card** - Unpredictable and unconventional judging criteria
+- **Dynamic Personalities**: 33 distinct debate personalities randomly assigned to debaters.
+- **Judge Personalities**: 5 unique judge personalities that evaluate debates differently.
 - **Structured Format**: Opening statements → 2 rounds of rebuttals → Judge evaluation
 - **Streaming Responses**: Real-time LLM response streaming
-- **Customizable Settings**:
-  - Select different models for each debater and judge
-  - Choose specific personalities or let them be randomly assigned
 - **Three-Judge System**: AI judges independently evaluate arguments and determine the winner
 
 ![Debate example](debate_example.png)
